@@ -9,7 +9,7 @@ module RbBotResearch
         bot.message(contains: /(test)/) { |event| send_messages(bot, event) }
 
         bot.string_select do |event|
-          @selections[event.custom_id] = event.values.join("")
+          @selections[event.channel.id][event.custom_id] = event.values.join("")
           event.interaction.respond(content: "#{event.custom_id}: **#{event.values.join('')}**")
         end
 
@@ -21,28 +21,33 @@ module RbBotResearch
               end
             end
             event.interaction.respond()
-          elsif event.custom_id == "submit" && @selections.length != 2
-            event.channel.send_message("Please select both values first")
-          elsif event.custom_id == "submit" && @text.nil?
-            event.channel.send_message("Please enter a description")
-          elsif event.custom_id == "submit" && @submitted
-            event.channel.send_message("You have already submitted this form")
           elsif event.custom_id == "submit"
-            @submitted = true
-            event.respond(content: "Thanks for submitting your form.\n\n\nDescription: **#{@text}**\n\nSelections:\n#{@selections.map { |k, v| "#{k}: **#{v}**" }.join("\n")}")
+            if@selections[event.channel.id].length != 2
+              event.channel.send_message("Please select both values first")
+            elsif @text[event.channel.id].nil?
+              event.channel.send_message("Please enter a description")
+            elsif @submitted[event.channel.id]
+              event.channel.send_message("You have already submitted this form")
+            else
+              @submitted[event.channel.id] = true
+              event.respond(content: "Thanks for submitting your form.\n\n\nDescription: **#{@text[event.channel.id]}**\n\nSelections:\n#{@selections[event.channel.id].map { |k, v| "#{k}: **#{v}**" }.join("\n")}")
+            end
           end
         end
 
         bot.modal_submit custom_id: 'test1234' do |event|
-          @text = event.value('description')
+          @text[event.channel.id] = event.value('description')
           event.respond(content: "Description: **#{event.value('description')}**")
         end
       end
 
       def send_messages(bot, event)
-        @selections = {}
-        @text = nil
-        @submitted = false
+        @selections ||= {}
+        @selections[event.channel.id] = {}
+        @text ||= {}
+        @text[event.channel.id] = nil
+        @submitted ||= {}
+        @submitted[event.channel.id] = false
         event.channel.send_message("HERE'S YOUR FORM", false, nil, nil, nil, nil,
           Discordrb::Webhooks::View.new do |builder|
             builder.row do |r|

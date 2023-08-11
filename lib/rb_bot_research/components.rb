@@ -9,34 +9,34 @@ module RbBotResearch
         bot.message(contains: /(ct)/) { |event| send_messages(bot, event) }
 
         bot.string_select do |event|
+          @selections[event.custom_id] = event.values.join("")
           event.interaction.respond(content: "You have chosen the values: **#{event.values.join('**, **')}** for selection #{event.custom_id}")
         end
 
         bot.button do |event|
-          event.show_modal(title: 'Test modal', custom_id: 'test1234') do |modal|
-            modal.row do |r|
-                r.text_input(style: 1, custom_id: "description", label: "Write your description", min_length: 10, max_length: 1000, required: true)
+          if @selections.length == 2
+            event.show_modal(title: 'Test modal', custom_id: 'test1234') do |modal|
+              modal.row do |r|
+                  r.text_input(style: 2, custom_id: "description", label: "Write your description", min_length: 10, max_length: 1000, required: true)
+              end
             end
+            event.interaction.respond(content: "#{event.custom_id} Button pushed")
+          else
+            event.interaction.respond(content: "Please select values first")
           end
-          event.interaction.respond(content: "#{event.custom_id} Button pushed")
         end
 
         bot.modal_submit custom_id: 'test1234' do |event|
-          print(event.inspect)
-          print(event.value('description'))
-          event.respond(content: "Thanks for submitting your modal. You sent characters.")
+          @text = event.value('description')
+          event.respond(content: "Thanks for submitting your modal. \n\nDescription: **#{event.value('description')}**\n\nSelections:\n#{@selections.map { |k, v| "#{k}: **#{v}**" }.join("\n")}")
         end
       end
 
       def send_messages(bot, event)
-        # event.show_modal(title: 'Test modal', custom_id: 'test1234') do |modal|
-        #   modal.row do |r|
-        #       r.text_input(style: 1, custom_id: "description", label: "Write your description", min_length: 10, max_length: 1000, required: true)
-        #   end
-        # end
-
         event.channel.send_message("HI THERE", false, nil, nil, nil, nil,
           Discordrb::Webhooks::View.new do |builder|
+            @selections = {}
+            @text = nil
             builder.row do |r|
               r.string_select(custom_id: 'string_select', placeholder: 'Test of StringSelect', max_values: 1, min_values: 1) do |ss|
                         ss.option(label: 'Value 1', value: '1', description: 'First value', emoji: { name: '1️⃣' })
